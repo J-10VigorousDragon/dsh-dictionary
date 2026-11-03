@@ -11,6 +11,10 @@
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const SRC_DIR = path.dirname(fileURLToPath(import.meta.url))
+const PHONETIC_FILE = path.join(SRC_DIR, '..', 'data', 'phonetics.json.gz')
 
 const ROUTE = '/dict-rpc'
 const MAX_BODY = 1_000_000
@@ -92,11 +96,36 @@ function csvCell(value) {
   return text
 }
 
+function fmtStamp(value) {
+  const date = value ? new Date(value) : null
+  if (!date || Number.isNaN(date.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return (
+    date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes())
+  )
+}
+
+function wrapPhonetic(raw) {
+  const text = String(raw || '').trim()
+  if (!text) return ''
+  if (text.startsWith('/') || text.startsWith('[')) return text
+  return '/' + text + '/'
+}
+
 function toCsv(items) {
-  const lines = ['单词,音标,释义,词典,收藏时间']
+  const lines = ['单词,美音,英音,释义,词典,收藏时间']
   for (const item of items) {
     lines.push(
-      [item.word, item.phonetic, item.brief, item.dictName, item.addedAt].map(csvCell).join(','),
+      [
+        item.word,
+        wrapPhonetic(item.phoneticUs) || wrapPhonetic(item.phonetic),
+        wrapPhonetic(item.phoneticGb),
+        item.brief,
+        item.dictName,
+        fmtStamp(item.addedAt),
+      ]
+        .map(csvCell)
+        .join(','),
     )
   }
   return '\uFEFF' + lines.join('\r\n') + '\r\n'
@@ -109,13 +138,24 @@ function toMarkdown(items) {
     '',
     '> 导出自 DSH 英汉词典插件 · ' + stamp,
     '',
-    '| 单词 | 音标 | 释义 | 收藏时间 |',
-    '| --- | --- | --- | --- |',
+    '| 单词 | 美音 | 英音 | 释义 | 收藏时间 |',
+    '| --- | --- | --- | --- | --- |',
   ]
   for (const item of items) {
     const brief = String(item.brief || '').replace(/\|/g, '\\|')
-    const time = String(item.addedAt || '').slice(0, 16).replace('T', ' ')
-    lines.push('| ' + item.word + ' | ' + (item.phonetic || '') + ' | ' + brief + ' | ' + time + ' |')
+    lines.push(
+      '| ' +
+        item.word +
+        ' | ' +
+        (wrapPhonetic(item.phoneticUs) || wrapPhonetic(item.phonetic)) +
+        ' | ' +
+        wrapPhonetic(item.phoneticGb) +
+        ' | ' +
+        brief +
+        ' | ' +
+        fmtStamp(item.addedAt) +
+        ' |',
+    )
   }
   return lines.join('\n') + '\n'
 }
@@ -168,6 +208,7 @@ export function apply(ctx, config = {}) {
 
   let runtime = null
   let runtimeError = null
+  let phonetics = null
 
   const ready = (async () => {
     try {
@@ -189,11 +230,45 @@ export function apply(ctx, config = {}) {
         /* ignore */
       }
     }
+    // 双音标表是可选增强，加载失败只降级为单音标
+    try {
+      const { loadPhonetics } = await import('./host/phonetics.js')
+      phonetics = await loadPhonetics(PHONETIC_FILE)
+    } catch (error) {
+      phonetics = null
+      try {
+        ctx.logger?.warn?.(
+          `[dsh-dictionary] 双音标表未加载：${error instanceof Error ? error.message : String(error)}`,
+        )
+      } catch {
+        /* ignore */
+      }
+    }
   })()
+
+  /** 给词条补上美音/英音（表里没有就留空，前端回退到词典自带音标）。 */
+  function attachPhonetics(entries) {
+    if (!Array.isArray(entries) || !entries.length) return entries
+    for (const entry of entries) {
+      if (!entry) continue
+      let pair = null
+      if (phonetics) {
+        try {
+          pair = phonetics.get(entry.word)
+        } catch {
+          pair = null
+        }
+      }
+      entry.phoneticUs = (pair && pair.us) || ''
+      entry.phoneticGb = (pair && pair.gb) || ''
+    }
+    return entries
+  }
 
   async function lookupResult(query) {
     const { hub, wordbook } = runtime
     const result = await hub.lookup(query)
+    attachPhonetics(result.entries)
     const favorited = []
     const seen = new Set()
     for (const entry of result.entries) {
@@ -225,6 +300,7 @@ export function apply(ctx, config = {}) {
           dictionaries: hub.status,
           wordbookCount: wordbook.count,
           wordbookPath: settings.wordbookPath,
+          phoneticsSize: phonetics ? phonetics.size : 0,
         }
       }
       case 'lookup': {
@@ -244,9 +320,19 @@ export function apply(ctx, config = {}) {
       case 'wordbook.add': {
         const word = String(payload.word || '').trim()
         if (!word) return { ok: false, error: '缺少 word' }
+        let pair = null
+        if (phonetics) {
+          try {
+            pair = phonetics.get(word)
+          } catch {
+            pair = null
+          }
+        }
         await wordbook.add({
           word,
           phonetic: String(payload.phonetic || ''),
+          phoneticUs: String(payload.phoneticUs || '') || (pair && pair.us) || '',
+          phoneticGb: String(payload.phoneticGb || '') || (pair && pair.gb) || '',
           brief: String(payload.brief || ''),
           dictName: String(payload.dictName || ''),
         })

@@ -88,7 +88,9 @@ check('apple 有结果', apple.ok && apple.entries.length > 0, apple)
 const first = apple.entries && apple.entries[0]
 check('apple 词条字段完整', Boolean(first && first.word && first.dict && Array.isArray(first.definitions)), first)
 check('apple 释义非空', Boolean(first && first.definitions.length), first && first.definitions)
-console.log('  ' + first.word + ' [' + (first.phonetic || '') + '] — ' + first.definitions.slice(0, 2).map((d) => (d.pos ? d.pos + ' ' : '') + d.text).join(' | '))
+check('apple 带美音音标', Boolean(first && first.phoneticUs), first && first.phoneticUs)
+check('apple 带英音音标', Boolean(first && first.phoneticGb), first && first.phoneticGb)
+console.log('  ' + first.word + ' 美[' + (first.phoneticUs || '') + '] 英[' + (first.phoneticGb || '') + '] — ' + first.definitions.slice(0, 2).map((d) => (d.pos ? d.pos + ' ' : '') + d.text).join(' | '))
 
 const glasses = await rpc('lookup', { q: 'glasses' })
 check('glasses 有结果（含词形回退/跨词典）', glasses.ok && glasses.entries.length > 0, glasses)
@@ -130,6 +132,7 @@ const list = await rpc('wordbook.list')
 check('列表两条', list.ok && list.items.length === 2, list)
 check('最新在前', list.items[0].word === 'serendipity', list.items.map((item) => item.word))
 check('带 addedAt', list.items.every((item) => Boolean(item.addedAt)), list.items)
+check('收藏自动补美音', list.items.every((item) => Boolean(item.phoneticUs)), list.items.map((item) => [item.word, item.phoneticUs]))
 
 const favored = await rpc('lookup', { q: 'apple' })
 check('lookup 回带 favorited', (favored.favorited || []).length === 1, favored.favorited)
@@ -139,7 +142,7 @@ const csv = await rpc('wordbook.export', { format: 'csv' })
 check('CSV 导出成功', csv.ok === true && Boolean(csv.path), csv)
 if (csv.ok) {
   const text = await fs.readFile(csv.path, 'utf8')
-  check('CSV 含表头与两行', text.includes('单词,音标,释义') && text.trim().split(/\r?\n/).length === 3, text.slice(0, 200))
+  check('CSV 含表头与两行', text.includes('单词,美音,英音,释义') && text.trim().split(/\r?\n/).length === 3, text.slice(0, 200))
   check('CSV 带 BOM', text.charCodeAt(0) === 0xfeff)
   await fs.rm(csv.path, { force: true })
   console.log('  ' + csv.path)
@@ -149,7 +152,7 @@ const md = await rpc('wordbook.export', { format: 'md' })
 check('Markdown 导出成功', md.ok === true && Boolean(md.path), md)
 if (md.ok) {
   const text = await fs.readFile(md.path, 'utf8')
-  check('MD 是表格', text.includes('| 单词 | 音标 | 释义 |'), text.slice(0, 200))
+  check('MD 是表格', text.includes('| 单词 | 美音 | 英音 | 释义 |'), text.slice(0, 200))
   await fs.rm(md.path, { force: true })
 }
 

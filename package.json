@@ -30,6 +30,8 @@
     "src/index.js",
     "src/host",
     "src/client",
+    "data",
+    "scripts",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
@@ -37,8 +39,9 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node test/engine.mjs",
-    "check": "node --check src/index.js && node --check src/client/index.js"
+    "test": "node test/engine.mjs && node test/rpc.mjs",
+    "check": "node --check src/index.js && node --check src/client/index.js",
+    "phonetics": "node scripts/build-phonetics.mjs"
   },
   "dsh": {
     "bundle": {

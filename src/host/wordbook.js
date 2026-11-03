@@ -2,8 +2,9 @@
  * wordbook.js — 单词本持久化（零依赖、原子写入、坏文件自愈）
  *
  * 文件格式（JSON）：
- *   { "version": 1, "entries": [ { word, phonetic, brief, dictName, addedAt }, ... ] }
+ *   { "version": 1, "entries": [ { word, phonetic, phoneticUs, phoneticGb, brief, dictName, addedAt }, ... ] }
  * 数组顺序即展示顺序：**最新收藏在前**。
+ * 兼容旧文件：缺失 phoneticUs / phoneticGb 的条目按空字符串读入。
  */
 
 import fs from 'node:fs/promises';
@@ -19,6 +20,8 @@ function toRecord(item) {
   return {
     word: item.word,
     phonetic: item.phonetic || '',
+    phoneticUs: item.phoneticUs || '',
+    phoneticGb: item.phoneticGb || '',
     brief: item.brief || '',
     dictName: item.dictName || '',
     addedAt: item.addedAt,
@@ -34,6 +37,8 @@ function normalize(item) {
   return {
     word,
     phonetic: typeof item.phonetic === 'string' ? item.phonetic : '',
+    phoneticUs: typeof item.phoneticUs === 'string' ? item.phoneticUs : '',
+    phoneticGb: typeof item.phoneticGb === 'string' ? item.phoneticGb : '',
     brief: typeof item.brief === 'string' ? item.brief : '',
     dictName: typeof item.dictName === 'string' ? item.dictName : '',
     addedAt,
@@ -52,7 +57,7 @@ function keyOf(word) {
 
 export class Wordbook {
   #file;
-  /** @type {Array<{word: string, phonetic: string, brief: string, dictName: string, addedAt: number}>} */
+  /** @type {Array<{word: string, phonetic: string, phoneticUs: string, phoneticGb: string, brief: string, dictName: string, addedAt: number}>} */
   #entries = [];
   /** @type {Map<string, number>} lower(word) → 在 #entries 中的下标 */
   #index = new Map();
@@ -182,9 +187,10 @@ export class Wordbook {
    * 收藏一个单词。
    * - 大小写不敏感去重：已存在则更新 brief（其余字段按传入值更新，未传则保留），
    *   位置与 addedAt 不变；
-   * - 超出上限（5000）淘汰最旧一条。
-   * @param {{word: string, phonetic?: string, brief?: string, dictName?: string}} item
-   * @returns {Promise<{word: string, phonetic: string, brief: string, dictName: string, addedAt: number}>}
+   * - 超出上限（5000）淘汰最旧一条；
+   * - phoneticUs / phoneticGb 为美音 / 英音双音标，可空字符串（缺数据）。
+   * @param {{word: string, phonetic?: string, phoneticUs?: string, phoneticGb?: string, brief?: string, dictName?: string}} item
+   * @returns {Promise<{word: string, phonetic: string, phoneticUs: string, phoneticGb: string, brief: string, dictName: string, addedAt: number}>}
    */
   async add(item) {
     const rec = normalize(item);
@@ -199,6 +205,8 @@ export class Wordbook {
         // 保留原位置与 addedAt
         existing.brief = rec.brief || existing.brief;
         existing.phonetic = rec.phonetic || existing.phonetic;
+        existing.phoneticUs = rec.phoneticUs || existing.phoneticUs;
+        existing.phoneticGb = rec.phoneticGb || existing.phoneticGb;
         existing.dictName = rec.dictName || existing.dictName;
         await this.#persist();
         return toRecord(existing);
