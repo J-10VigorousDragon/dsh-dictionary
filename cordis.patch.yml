@@ -1,0 +1,9 @@
+# dsh-dictionary bundle layer
+# Host 半：/dict-rpc 路由（离线 StarDict 查词 + 单词本读写）
+# Client 半：侧边栏面板图标 + 主面板词典页面
+
+- insert:
+    - id: dsh-dictionary
+      name: 'dsh-dictionary'
+      config:
+        dictionaryPaths: []

@@ -1,0 +1,55 @@
+{
+  "name": "dsh-dictionary",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "DSH 桌面端英汉词典：离线 StarDict 查词 + 单词收藏记录本",
+  "license": "MIT",
+  "private": false,
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "cordis",
+    "dictionary",
+    "stardict",
+    "英汉词典"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/J-10VigorousDragon/dsh-dictionary.git"
+  },
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./src/client/index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src/index.js",
+    "src/host",
+    "src/client",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node test/engine.mjs",
+    "check": "node --check src/index.js && node --check src/client/index.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
