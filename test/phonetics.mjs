@@ -68,7 +68,7 @@ async function main() {
   const bestMs = Math.min(loadMs, loadMs2);
 
   console.log(`  首次 ${fmt(loadMs)}ms · 二次 ${fmt(loadMs2)}ms · 取较优 ${fmt(bestMs)}ms`);
-  console.log(`  size=${index.size.toLocaleString('en-US')} · heap 增量 ${mb(heapDelta)} · rss 增量 ${mb(process.memoryUsage().rss - before.rss)}`);
+  console.log(`  size=${index.size.toLocaleString('en-US')} · heap 增量 ${mb(heapDelta)} · rss 增量 ${mb(process.memoryUsage().rss - before.rss)}（含未回收瞬时缓冲）`);
 
   check(index.size > 100000, `size > 100000（实际 ${index.size.toLocaleString('en-US')}）`);
   check(index2.size === index.size, '两次加载条目数一致');
