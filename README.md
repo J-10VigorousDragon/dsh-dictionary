@@ -10,6 +10,12 @@ DeepSeek Harness 桌面端插件：**离线 StarDict 英汉查词 + 划词查询
 - 划词浮层可查词、朗读、直接收藏，并跳到词典面板
 - 单词本落盘为 JSON，原子写入，重启不丢；支持 CSV / Markdown 导出
 
+## 界面
+
+| 查词（美/英双音标） | 划词浮层（可直接收藏） | 单词本（表格） |
+| --- | --- | --- |
+| ![查词](<./docs/shots/search.png>) | ![划词](<./docs/shots/selection.png>) | ![单词本](<./docs/shots/wordbook.png>) |
+
 ## 功能
 
 | 能力 | 说明 |

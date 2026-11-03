@@ -113,6 +113,13 @@ window.__ModuleLoader__.load({
       return usPhonetic(entry) || gbPhonetic(entry) || formatPhonetic(entry && entry.phonetic)
     }
 
+    /** 一个词可能有多种读音（以 ", " 分隔），表格里只显示第一种，避免被截断。 */
+    function firstReading(value) {
+      const text = String(value || '')
+      const index = text.indexOf(", ")
+      return index >= 0 ? text.slice(0, index) : text
+    }
+
     function briefOf(entry) {
       const defs = (entry && entry.definitions) || []
       const first = defs.find((item) => item && item.text && item.text.trim())
@@ -850,7 +857,7 @@ window.__ModuleLoader__.load({
                       'div',
                       { className: 'dsd-cell-pho' },
                       item.phoneticUs ? h('em', null, '美') : item.phoneticGb ? h('em', null, '英') : null,
-                      item.phoneticUs || item.phoneticGb || formatPhonetic(item.phonetic) || '—',
+                      formatPhonetic(firstReading(item.phoneticUs || item.phoneticGb) || item.phonetic) || '—',
                     ),
                     h('div', { className: 'dsd-cell-brief' }, item.brief || '（无释义摘要）'),
                     h('div', { className: 'dsd-cell-time' }, fmtTime(item.addedAt)),
